@@ -1,4 +1,6 @@
-# import libraries
+# ── Bank Churn Prediction ──
+# Feedforward neural network for predicting customer churn in retail banking.
+# Binary classification: will the customer leave (1) or stay (0)?
 
 import numpy as np
 import pandas as pd
@@ -6,54 +8,39 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-# read data
+# ── Data loading ──
 
+# drop first 3 columns (row number, customer ID, surname) — no predictive value
 churn = pd.read_csv('../../data/Churn_Modelling.csv')
 churn = churn.iloc[:, 3:]
-churn.head()
 
-
-# define X and y
-
+# features: credit score, geography, gender, age, tenure, balance,
+#           num products, has credit card, is active, estimated salary
 X = churn.iloc[:, :10]
 y = churn.iloc[:, 10]
 
 
-# encode categorical data
+# ── Preprocessing ──
 
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+
+# encode gender (binary) and one-hot encode geography (France/Germany/Spain)
 X['Gender'] = LabelEncoder().fit_transform(X['Gender'])
 X = pd.get_dummies(X, drop_first = True)
-
-
-# preview data for algorithm
-
-print(X.head())
-print(y.head())
-
-
-# convert X and y to arrays for nn
 
 y = np.array(y)
 X = np.array(X)
 
-
-# split into train and test sets
-
-from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
-
-
-# scale features
-
-from sklearn.preprocessing import StandardScaler
 
 X_train = StandardScaler().fit_transform(X_train)
 X_test = StandardScaler().fit_transform(X_test)
 
 
-# build neural network
+# ── Neural network ──
+# progressive widening (8 → 16 → 32) lets the network learn increasingly
+# complex feature interactions before collapsing to a single output node
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -70,18 +57,15 @@ model.add(Dense(1, activation = sigmoid))
 model.compile(optimizer = Adam(), loss = binary_crossentropy, metrics = ['accuracy'])
 
 
-# fit model
+# ── Training ──
 
 model.fit(X_train, y_train, epochs = 100, validation_data = (X_test, y_test))
 
 
-# make predictions on test set
+# ── Evaluation ──
 
 y_pred = model.predict(X_test)
 y_pred_binary = (y_pred > .5)
-
-
-# model accuracy visualizations
 
 from sklearn.metrics import confusion_matrix
 
@@ -91,9 +75,8 @@ def plotConfusionMatrix(matrix):
     ax.set_ylim(bottom + 0.5, top - 0.5)
 
 def plotLearningCurve(history, epoch):
-    
-    # plot training & validation accuracy values
     epochs = range(1, epoch + 1)
+
     plt.plot(epochs, history.history['accuracy'])
     plt.plot(epochs, history.history['val_accuracy'])
     plt.title('Model Accuracy')
@@ -101,8 +84,7 @@ def plotLearningCurve(history, epoch):
     plt.xlabel('Epoch')
     plt.legend(['Train', 'Test'], loc = 'upper left')
     plt.show()
-    
-    # plot training & validation loss values
+
     plt.plot(epochs, history.history['loss'])
     plt.plot(epochs, history.history['val_loss'])
     plt.title('Model Loss')
@@ -110,7 +92,6 @@ def plotLearningCurve(history, epoch):
     plt.xlabel('Epoch')
     plt.legend(['Train', 'Test'], loc = 'upper left')
     plt.show()
-
 
 plotConfusionMatrix(confusion_matrix(y_test, y_pred_binary))
 plotLearningCurve(model.history, 100)
